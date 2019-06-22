@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt #c9 update /etc/matplotlibrc backend : Agg to sa
 
 class TraderEnv(gym.Env):
 
-    def __init__(self,p1,p2,trainIters=100,batchNumber=0,negRewM=1.0,startTrainIdx=22,sd=60):
+    def __init__(self,p1,p2,trainIters=100,batchNumber=0,negRewM=1.0,startTrainIdx=22):
         #trading params
         self.trainMax = trainIters #should match TRAINING_ITERS in learning algorithm
         self.length = 0.5 # actually half the pole's length
@@ -25,9 +25,9 @@ class TraderEnv(gym.Env):
         self.pairs=[[p1,p2]]#"MA","VFC"]]#CRAZY PAIR
         self.lags = 22
         self.dataidx = self.lags
-        self.df = pd.read_csv("data/sp_all.csv")
+        self.df = pd.read_csv("sp_all.csv")
         self.df = self.df[["Date",p1,p2]].copy() # trim all data except pair data
-        self.completeData = "data/"+self.pairs[0][0]+"."+self.pairs[0][1]+".full.csv"
+        self.completeData = self.pairs[0][0]+"."+self.pairs[0][1]+".full.csv"
         print("completeData: ",self.completeData)
         self.dflen = len(self.df)
         self.training = True
@@ -38,7 +38,6 @@ class TraderEnv(gym.Env):
         self.maxIdx = 10000000
         self.firstEp = True
         self.cumTestR = 0.0
-        self.verified = False
         self.cumTestRs = []
         self.prc1 = []
         self.prc2 = []
@@ -48,15 +47,11 @@ class TraderEnv(gym.Env):
         self.testMap = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
         #env params
         self.action_space = spaces.Discrete(3)# [-1,0,1] #actions are: -1 short, 0 no position, 1 long
-        
-        #self.high = np.array([3, 3, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],dtype='float32') #max: returns=3.0 (300%), sp/spmn=2.0(usually near 1.0)
-        
-        self.high = np.array([3, 3, 1, 0, 0, 1, 1],dtype='float32')
-        
+        #
+        self.high = np.array([3, 3, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],dtype='float32') #max: returns=3.0 (300%), sp/spmn=2.0(usually near 1.0)
         self.observation_space = spaces.Box(-self.high, self.high, dtype=np.float32)
         self.batchNumber = batchNumber
-        #self.seed()
-        self.seed(sd)
+        self.seed()
         
         
         #building environment states for each pair
@@ -219,13 +214,6 @@ class TraderEnv(gym.Env):
         
         #if self.trainIters==(self.trainMax-1): print("sprets0, rewards: ",sprets0,rewards)
         if self.dataidx >= self.testIdx: 
-            #verifying NN
-            if self.dataidx == (((self.dflen - self.testIdx)/2) + self.testIdx):#halfway through test data
-                print("verifying data",self.dataidx)
-                #input()
-                if self.cumTestR > 0.0:
-                    self.verified = True
-            
             #print("new action: ",action)
             #print("self.dataidx, self.testIdx: ",self.dataidx,self.testIdx)
             '''
@@ -258,7 +246,7 @@ class TraderEnv(gym.Env):
             self.testMap[14].append(spmn_170)
             self.testMap[15].append(sp_spmn_170)
             
-            print("rew,sprets,sig,act,cumTestR,verified: ",rewards,sprets0,signal,action,self.cumTestR,self.verified)
+            print("rewards,sprets,signal,action(today's action),cumTestR: ",rewards,sprets0,signal,action,self.cumTestR)
             
         # print("self.dataidx: ",self.dataidx)
         #return np.array((3.0,3.0,3.0,3.0)),1.0,False,{}
@@ -283,7 +271,7 @@ class TraderEnv(gym.Env):
         if done and self.firstEp:
             self.firstEp = False
             plt.plot(self.trainSps)
-            plt.savefig(str(self.batchNumber)+"/"+str(self.pairs[0][0])+"_"+str(self.pairs[0][1])+".trainData."+str(self.trainMax)+".png")
+            plt.savefig(str(self.pairs[0][0])+"_"+str(self.pairs[0][1])+".train."+str(self.trainMax)+".png")
             plt.show()
             plt.close()
             
@@ -309,18 +297,15 @@ class TraderEnv(gym.Env):
             self.axarr[4].plot(self.testActs)
             self.axarr[4].set_title("Test Data Actions")
             self.axarr[4].set_xlabel("Test Data Trading Days",fontsize=15)
-            plt.savefig(str(self.batchNumber)+"/"+str(self.pairs[0][0])+"_"+str(self.pairs[0][1])+".test_r.eps"+str(self.trainMax)+".png")
+            plt.savefig(str(self.batchNumber)+"."+str(self.pairs[0][0])+"_"+str(self.pairs[0][1])+".test_r.eps"+str(self.trainMax)+".png")
             plt.show()
             #plt.close()
             #print("heatMap: ",self.testMap)
             
         #fix this, add 100, 150, 170
-        '''
         return np.array((spmn_5tau0,sp0,spmn0,sp_spmn0,sprets0,signal,spmn_30,\
                 sp_spmn_30,spmn_50,sp_spmn_50,spmn_100,sp_spmn_100,spmn_150,sp_spmn_150,\
             spmn_170,sp_spmn_170),dtype='float32'), rewards, done, {}#sp_spmn0 to first 0.0
-        '''
-        return np.array((sprets0,sp_spmn0,sp_spmn_30,sp_spmn_50,sp_spmn_100,sp_spmn_150,sp_spmn_170),dtype='float32'), rewards, done, {} #7 features
         
         
     def reset(self):
@@ -354,14 +339,8 @@ class TraderEnv(gym.Env):
         
         spmn_5tau0 = self.df["spmn_5tau0"][self.dataidx]
         #print(sp0,sprets0,spmn0,sp_spmn0)
-        '''
-        
         res = np.array((spmn_5tau0,sp0,spmn0,sp_spmn0,sprets0,signal,spmn_30,sp_spmn_30,\
         spmn_50,sp_spmn_50,spmn_100,sp_spmn_100,spmn_150,sp_spmn_150,spmn_170,sp_spmn_170),dtype='float32')#sp0,spmn0
-        '''
-        
-        res = np.array((sprets0,sp_spmn0,sp_spmn_30,sp_spmn_50,sp_spmn_100,sp_spmn_150,sp_spmn_170),dtype='float32') #7 features
-        
         #print("resetting: ",res)
         
         return res
