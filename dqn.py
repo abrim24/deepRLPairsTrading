@@ -12,13 +12,17 @@ import gym
 from trader import * #trader.py
 from cartpole2 import *
 import json
+import os
+
+os.chdir("/home/ec2-user/environment/rltrader")
 
 SEED = 68
 torch.manual_seed(SEED)
 np.random.seed(SEED)
-BATCH_NUMBER = 71
-TRAINING_ITERS = 300
+BATCH_NUMBER = 134
+TRAINING_ITERS = 30
 HIDDEN_LAYER = 50
+
 #58_5_113
 #56_2.5_114.92
 #55_2.5_112.31
@@ -35,9 +39,27 @@ HIDDEN_LAYER = 50
 #68_40.0_99.05 #seed 66
 #69_50.0_54.27 #seed 67 (42.23 + 12.04)
 #70_100.0_92.67 #seed 67
-#71_1000.0_ #seed 68
+#71_1000.0_-13.95 #seed 68
+#72_500.0_3.65 #seed 68
+#73_200.0_5.88 #seed 68 (11.12 + -5.24)
+#74_300.0_42 #seed 68, iters 100
+#75_400.0_27.47 #seed 68, iters 100
+#76_600.0_ #seed 68, iters 100
+#77_700.0_ #seed 68, iters 100
+#78_800.0_ #seed 68, iters 100
+#79_900.0_ #seed 68, iters 100
+#80_100.0_ #seed 69, iters 100
+#83_1000.0_-2.43 #seed 70
+#90_ #seed 63 recreate testMaps
+#92 histotests
+#95 #seed 63 HL 16 NEG 1.0 iters 300
+#96 #seed 63 HL 50 NEG 1.0 iters 300
+#96 #seed 61 HL 50 NEG 1.0 iters 300, need >114
+#102 #seed 64 HL 50 NEG 1.0 iters 300
+#103 #seed 61 HL 50 NEG 1.0 iters 300, feats graph
+#108 #seed 61 HL 50 NEG 1.0 iters 300, cog/do esv/rrc
 
-NEG_REWM = 1000.0 
+NEG_REWM = 1.0#1000.0 
 START_TRAINIDX = 1009 #505 train 2015,16,17 #1009 train 2017
 
 # Hyper Parameters
@@ -139,8 +161,28 @@ class DQN(object):
         self.memory = np.zeros((MEMORY_CAPACITY, N_STATES * 2 + 2),dtype='float32')
         self.memory_counter = 0                                         # for storing memory
         
-
+#create new directory
+while (os.path.exists(str(BATCH_NUMBER))):
+    BATCH_NUMBER += 1
 os.makedirs(str(BATCH_NUMBER))
+
+
+pairs = [["ADBE","RHT"]]
+
+'''
+pairs = [["ADBE","RHT"],
+["COG","DO"],
+["ESV","RRC"]]#BADNA,BADNA,BADNA,BADNA,GOOD]#-1.5
+
+pairs = [
+["CTWS","AWR"],#81.37
+["FCX","HBI"],#25.28
+["HBI","MRO"],#31.02
+["CNX","HBI"],#8.91,8.04,2.07,0.44
+["GPS","CF"],#1.1
+["DISCK","RIG"],#-.79
+["ESV","GNW"],
+["ADBE","RHT"]]#BADNA,BADNA,BADNA,BADNA,GOOD]#-1.5
 
 pairs = [["BEN","COG"],#BAD,OK++,GOOD1++,GOOD1,GOOD1/BADR
 ["DISCA","RIG"],#OK,GOOD1++,GOOD,GOOD,GOOD/BADR
@@ -179,7 +221,9 @@ pairs = [["BEN","COG"],#BAD,OK++,GOOD1++,GOOD1,GOOD1/BADR
 ["CTWS","AWR"],
 ["CTWS","WTR"],
 ["AWR","WTR"],
-["SLB","PFE"]]#OK,GOOD++,GOOD,GOOD,GOOD
+["SLB","PFE"],
+["GPS","CF"]]#OK,GOOD++,GOOD,GOOD,GOOD
+'''
 
 totalReturns = []
 pairReturns = {}

@@ -12,6 +12,8 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt #c9 update /etc/matplotlibrc backend : Agg to save file as png
 
+os.chdir("/home/ec2-user/environment/rltrader")
+
 class TraderEnv(gym.Env):
 
     def __init__(self,p1,p2,trainIters=100,batchNumber=0,negRewM=1.0,startTrainIdx=22,sd=60):
@@ -45,7 +47,8 @@ class TraderEnv(gym.Env):
         self.trainSps = []
         self.testSp = []
         self.testActs = []
-        self.testMap = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+        self.testActCt = []
+        self.testMap = [[],[],[],[],[],[],[],[],[],[]]#,[],[],[],[],[],[]]
         #env params
         self.action_space = spaces.Discrete(3)# [-1,0,1] #actions are: -1 short, 0 no position, 1 long
         
@@ -241,23 +244,24 @@ class TraderEnv(gym.Env):
             self.testSp.append(self.df["sp0"][self.dataidx])
             self.testActs.append(signal)
             
-            self.testMap[0].append(spmn_5tau0)
-            self.testMap[1].append(sp0)
-            self.testMap[2].append(spmn0)
-            self.testMap[3].append(sp_spmn0)
-            self.testMap[4].append(sprets0)
-            self.testMap[5].append(signal)
-            self.testMap[6].append(spmn_30)
-            self.testMap[7].append(sp_spmn_30)
-            self.testMap[8].append(spmn_50)
-            self.testMap[9].append(sp_spmn_50)
-            self.testMap[10].append(spmn_100)
-            self.testMap[11].append(sp_spmn_100)
-            self.testMap[12].append(spmn_150)
-            self.testMap[13].append(sp_spmn_150)
-            self.testMap[14].append(spmn_170)
-            self.testMap[15].append(sp_spmn_170)
+            #self.testMap[0].append(spmn_5tau0)#0
+            self.testMap[0].append(sp0)#1
+            self.testMap[1].append(spmn0)#2
+            self.testMap[2].append(sp_spmn0)#3
+            self.testMap[3].append(sprets0)#4
+            #self.testMap[5].append(signal)#5
+            self.testMap[4].append(spmn_30)#6
+            self.testMap[5].append(sp_spmn_30)#7
+            self.testMap[6].append(spmn_50)#8
+            self.testMap[7].append(sp_spmn_50)#9
+            self.testMap[8].append(spmn_100)#10
+            self.testMap[9].append(sp_spmn_100)#11
+            #self.testMap[12].append(spmn_150)
+            #self.testMap[13].append(sp_spmn_150)
+            #self.testMap[14].append(spmn_170)
+            #self.testMap[15].append(sp_spmn_170)
             
+            #10 features sp0,sprets0,
             print("rew,sprets,sig,act,cumTestR,verified: ",rewards,sprets0,signal,action,self.cumTestR,self.verified)
             
         # print("self.dataidx: ",self.dataidx)
@@ -292,7 +296,15 @@ class TraderEnv(gym.Env):
             self.f, self.axarr = plt.subplots(5, sharex=True, figsize=(7,10))
             self.f.subplots_adjust(hspace=0.22)
             
-        if done and not self.training:
+        #done training and testing printing results
+        if done and not self.training and self.dataidx > self.testIdx:
+            print(self.dataidx,self.dflen)
+            
+            self.testActCt.append(self.testActs.count(-1))
+            self.testActCt.append(self.testActs.count(0))
+            self.testActCt.append(self.testActs.count(1))
+            print("self.testActCt: ",self.testActCt)
+            self.createMap()
             self.axarr[0].set_title("Cummulative Returns")
             self.axarr[0].plot(self.cumTestRs)#,colors=test_rcolors)
             self.axarr[1].plot(self.prc1)
@@ -301,8 +313,9 @@ class TraderEnv(gym.Env):
             self.axarr[1].legend()
             self.axarr[2].plot(self.testSp)
             self.axarr[2].set_title(str(self.pairs[0][0])+"/"+str(self.pairs[0][1])+" Spread")
+            print("self.testMap: ",self.testMap)
             self.axarr[3].imshow(np.array(self.testMap),aspect="auto",cmap="jet")
-            self.axarr[3].set_yticklabels(["threashold","spread","spreadMean10day","sp/spreadMean10","spreadReturns","prevSignal","spreadMean7day","sp/spreadMean7day","spreadMean5day","sp/spreadMean5day"])
+            self.axarr[3].set_yticklabels(["spread","spreadReturns","spreadMean5day","sp/spreadMean5day","spreadMean7day","sp/spreadMean7day","spreadMean10day","sp/spreadMean10","spreadMean15day","sp/spreadMean15"])
             self.axarr[3].tick_params(axis='y', which='major', labelsize=6)
             self.axarr[3].set_title("Test Data Features")
             #self.axarr[3].figure(figsize=(100,100))
@@ -311,7 +324,11 @@ class TraderEnv(gym.Env):
             self.axarr[4].set_xlabel("Test Data Trading Days",fontsize=15)
             plt.savefig(str(self.batchNumber)+"/"+str(self.pairs[0][0])+"_"+str(self.pairs[0][1])+".test_r.eps"+str(self.trainMax)+".png")
             plt.show()
-            #plt.close()
+            plt.close()
+            
+            self.mtplt()
+            
+            
             #print("heatMap: ",self.testMap)
             
         #fix this, add 100, 150, 170
@@ -322,6 +339,14 @@ class TraderEnv(gym.Env):
         '''
         return np.array((sprets0,sp_spmn0,sp_spmn_30,sp_spmn_50,sp_spmn_100,sp_spmn_150,sp_spmn_170),dtype='float32'), rewards, done, {} #7 features
         
+    def mtplt(self):
+        
+        plt.bar(["short","no position","long"],self.testActCt, align='center', alpha=0.5)
+        #plt.figure(figsize=(18, 10)).suptitle("mytitle",fontsize=20)
+        plt.title("Number of Actions")
+        plt.savefig(str(self.batchNumber)+"/"+str(self.pairs[0][0])+"_"+str(self.pairs[0][1])+".test_numActs.eps"+str(self.trainMax)+".png")
+        plt.show()
+        plt.close()
         
     def reset(self):
         #lags = self.lags#start at beginning
@@ -366,3 +391,19 @@ class TraderEnv(gym.Env):
         
         return res
             
+    def createMap(self):
+        tm = self.testMap
+        newtm = self.testMap.copy()
+        
+        for i in range(len(tm)):
+            for j in range(len(tm[i])):
+                newtm[i][j] = (tm[i][j] - min(tm[i])) / (max(tm[i]) - min(tm[i]))
+        
+        self.testMap = newtm
+        
+        '''
+        print("newtm",newtm)
+        input()
+        print("tm",tm)
+        input()
+        '''
